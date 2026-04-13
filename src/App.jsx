@@ -8,42 +8,42 @@ const LOCATIONS = {
     subtitle: "Old Course, Scotland",
     period: "July 10–17, 2027",
     flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
-    altitude: 10,          // metres above sea level
-    tempC: 17,             // average July temp °C
-    humidity: 78,          // % relative humidity
-    windSpeed: 6.2,        // m/s average wind speed
-    windDir: 225,          // degrees (SW prevailing)
-    airDensity: 1.225,     // kg/m³ at sea level, 17°C (calculated)
-    gravity: 9.812,        // m/s² at this latitude
-    notes: "Links course, sea-level, cool & humid. SW wind off the North Sea.",
+    altitude: 0,          // meters above sea level
+    tempC: 0,             // average July temp °C
+    humidity: 0,          // % relative humidity
+    windSpeed: 0,        // m/s average wind speed
+    windDir: 0,          // degrees (SW prevailing)
+    airDensity: 0,     // kg/m³ at sea level, 17°C (calculated)
+    gravity: 9.81,        // m/s² at this latitude
+    notes: "[location notes]",
   },
   lapaz: {
     name: "La Paz Golf Club",
     subtitle: "Bolivia",
     period: "August 2027",
     flag: "🇧🇴",
-    altitude: 3300,
-    tempC: 12,
-    humidity: 55,
-    windSpeed: 3.1,
-    windDir: 270,
-    airDensity: 0.881,     // ~28% less dense than sea level — massive effect
-    gravity: 9.782,
-    notes: "Highest major golf club in the world. Thin air = dramatically longer drives.",
+    altitude: 0,
+    tempC: 0,
+    humidity: 0,
+    windSpeed: 0,
+    windDir: 0,
+    airDensity: 0,
+    gravity: 9.81,
+    notes: "[location notes]",
   },
   philippines: {
     name: "Philippines",
     subtitle: "Tropical course",
     period: "January 2027",
     flag: "🇵🇭",
-    altitude: 50,
-    tempC: 28,
-    humidity: 85,
-    windSpeed: 4.8,
-    windDir: 45,
-    airDensity: 1.184,     // slightly less dense due to heat & humidity
-    gravity: 9.810,
-    notes: "Hot, humid, near sea-level. Trade winds from NE in January.",
+    altitude: 0,
+    tempC: 0,
+    humidity: 0,
+    windSpeed: 0,
+    windDir: 0,
+    airDensity: 0,
+    gravity: 9.81,
+    notes: "[location notes]",
   },
 };
 
@@ -61,9 +61,9 @@ const MAX_T           = 20;     // max simulation time (seconds)
 // ── Factor definitions ────────────────────────────────────────────────────────
 const FACTORS = [
   { id: "drag",       label: "Aerodynamic drag",    desc: "Air resistance on the ball",         implemented: true  },
-  { id: "lift",       label: "Magnus lift",          desc: "Backspin creates upward force",      implemented: true  },
-  { id: "wind",       label: "Wind (headwind)",      desc: "Opposing horizontal wind component", implemented: true  },
-  { id: "altitude",   label: "Altitude / air density", desc: "Thinner air at elevation",        implemented: true  },
+  { id: "lift",       label: "Magnus lift",          desc: "Backspin creates upward force",      implemented: false  },
+  { id: "wind",       label: "Wind (headwind)",      desc: "Opposing horizontal wind component", implemented: false  },
+  { id: "altitude",   label: "Altitude / air density", desc: "Thinner air at elevation",        implemented: false  },
   { id: "humidity",   label: "Humidity correction",  desc: "Moist air is slightly less dense",   implemented: false },
   { id: "temp",       label: "Temperature effect",   desc: "Ball compression & air density",     implemented: false },
   { id: "spin_decay", label: "Spin decay",           desc: "RPM loss during flight",             implemented: false },
@@ -72,10 +72,10 @@ const FACTORS = [
   { id: "slope",      label: "Terrain slope",        desc: "Uphill / downhill fairway",          implemented: false },
 ];
 
-// ── Core physics simulation ───────────────────────────────────────────────────
+// ── Core physics simulation-Euler's method ───────────────────────────────────────────────────
 function simulate(angleDeg, location, activeFactors) {
-  const loc   = LOCATIONS[location];
-  const theta = (angleDeg * Math.PI) / 180;
+  const loc   = LOCATIONS[location]; // selects which location is used
+  const theta = (angleDeg * Math.PI) / 180; // degrees to radians
 
   // Effective air density
   let rho = activeFactors.altitude ? loc.airDensity : 1.225;
@@ -100,9 +100,11 @@ function simulate(angleDeg, location, activeFactors) {
     const Fd  = 0.5 * rho * v ** 2 * BALL_AREA_M2 * cd;
     const Fl  = 0.5 * rho * v ** 2 * BALL_AREA_M2 * cl;
 
+    // acceleration components 
     const ax  = -(Fd * vx) / (BALL_MASS_KG * v);
     const ay  = (Fl / BALL_MASS_KG) - g - (Fd * vy) / (BALL_MASS_KG * v);
 
+    // updates velocity and position with a step of length 'DT (defined above)
     vx += ax * DT;
     vy += ay * DT;
     x  += vx * DT;
