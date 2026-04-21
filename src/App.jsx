@@ -41,9 +41,9 @@ const GLOBAL_PHYSICS = {
   ballRadiusM: 0.02135,
   clubMassKG: 0.2,
   clubSpeedMS: 45, 
-  loftMinDEG: 6,  
-  loftMaxDEG: 15,
-  DT: 0.001  // timestep for simulation
+  loftMinDEG: 8,  
+  loftMaxDEG: 20,
+  DT: 0.01  // timestep for simulation
 } 
 
 
@@ -59,31 +59,37 @@ function simulate(staticLoft, loc) {
   const T = loc.tempC + 273.15; // convert to kelvin
   const z = loc.altitudeM;
 
+  // pre-calculating constants for later
   const A = Math.PI * ( R ** 2 );
 
   const m_air = 4.8 * (10**-26);
   const k = 1.381 * (10**-23);
   const R_specific = 287.05;
 
+  // BEGINNING OF THE MATH IN RESEARCH DOC
+
   // dynamic loft
-  const theta = staticLoft + 3.3;
+  const thetaDeg = staticLoft + 3.3
+  const theta = thetaDeg * Math.PI / 180;
+  
   // coefficient of restitution
   const e = 0.86 - 0.0029 * v_ci * Math.cos(theta);
+
   // moment of inertia of the ball
   const I = 0.4 * m * (R ** 2);
-
+  
   // initial components of ball's velocity normal and perpendicular to the club face
   const v_bfn = (1+e) * v_ci * Math.cos(theta) / (1 + (m / M));
   const v_bfp = -v_ci * Math.sin(theta) / (1 + (m/M) + (m * (R**2) / I));
 
   // launch angle of ball
-  const psi = theta + Math.atan(v_bfp / v_bfn);
+  let psi = theta + Math.atan(v_bfp / v_bfn);
 
-  // velocity of ball
+  // speed of ball
   const v_bo = Math.sqrt( (v_bfn ** 2) + (v_bfp ** 2) );
 
   // angular velocity of ball
-  const w_bf = -m * v_bfp * R / I;
+  let w_bf = -m * v_bfp * R / I;
 
   // setting initial position of ball
   let x = 0;
@@ -93,12 +99,14 @@ function simulate(staticLoft, loc) {
   let v_x = v_bo * Math.cos(psi);
   let v_y = v_bo * Math.sin(psi);
 
-
   let t = 0;
   while (y >= 0 && t < 20) {
     t+= GLOBAL_PHYSICS.DT;
     // apply a headwind
     const v_relx = v_x - v_wind;
+
+    // calculate new angle based on vy/vx
+    let psi = Math.atan(v_y / v_relx);
 
     // relative speed of ball
     const v_rel = Math.sqrt( (v_relx ** 2) + (v_y ** 2) );
@@ -126,10 +134,15 @@ function simulate(staticLoft, loc) {
     // drag coefficient (at high speeds)
     const C_d = 1.91*(10**-11)*(Re**2) - 5.40*(10**-6)*(Re) + 0.56;
 
-    const F_d = 0.5 * rho * A * C_d * v_rel;
+    console.log(C_d);
 
-    const a_x = (-F_d * Math.cos(psi)) / m;
-    const a_y = (-F_d * Math.sin(psi)) / m - g;
+    const F_l = 0.5 * rho * A * C_l * v_rel**2;
+    const F_d = 0.5 * rho * A * C_d * v_rel**2;
+
+
+
+    const a_x = (-F_d * Math.cos(psi) - F_l * Math.sin(psi)) / m;
+    const a_y = (-F_d * Math.sin(psi) + F_l * Math.cos(psi)) / m - g;
 
     v_x += a_x * GLOBAL_PHYSICS.DT;
     v_y += a_y * GLOBAL_PHYSICS.DT;
@@ -138,7 +151,7 @@ function simulate(staticLoft, loc) {
     y += v_y * GLOBAL_PHYSICS.DT;
   }
 
-  return Math.abs(x);
+  return x;
 }
 
 
@@ -146,7 +159,7 @@ function getDistance(loftDeg, loc) {
   // seems arbitrary but useful later on if trajectory paths are used
   // since simulate function will return a path
   // this is just a bit easier to work with than [0]'ing a returned array
-  return simulate(loftDeg, loc);
+  return simulate(loftDeg, loc)
 }
 
 
@@ -179,14 +192,12 @@ export default function App() {
     return angles;
   }, []);
 
-  console.log(loftAngles)
-
 
   // running simulate function to get dict assocating each loft with a distance
   const distancePerLoft = useMemo(() => {
     return loftAngles.map(loft => ({
       loft,
-      distance: simulate(loft, loc),
+      distance: getDistance(loft, loc),
     }));
   }, [locationKey]);
 
@@ -197,6 +208,7 @@ export default function App() {
 
   const optimalLoft = optimalEntry.loft;
   const maxDistance = optimalEntry.distance;
+
 
   return (
     <div>
@@ -266,8 +278,8 @@ export default function App() {
                   dataKey="distance"
                   stroke="#1a6bb5"
                   strokeWidth={2}
-                  dot={{ r: 4, fill: "#1a6bb5", strokeWidth: 0 }}
-                  activeDot={{ r: 6 }}
+                  dot={{ r: 3, fill: "#1a6bb5", strokeWidth: 0 }}
+                  activeDot={{ r: 4 }}
                 />
               </LineChart>
             </ResponsiveContainer>
