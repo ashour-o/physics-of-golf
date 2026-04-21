@@ -42,8 +42,8 @@ const GLOBAL_PHYSICS = {
   clubMassKG: 0.2,
   clubSpeedMS: 45, 
   loftMinDEG: 0,  
-  loftMaxDEG: 30,
-  DT: 0.001  // timestep for simulation
+  loftMaxDEG: 35,
+  DT: 0.01  // timestep for simulation
 } 
 
 
@@ -56,19 +56,54 @@ function simulate(staticLoft, loc) {
 
   const g = loc.gravity;
   const v_wind = loc.windSpeedMS;
-  const T_C = loc.tempC; // temperature in celsius
-  const T = loc.tempC + 273.15; // convert to kelvin
+  const T_C = loc.tempC // celsius
+  const T = T_C + 273.15; // convert to kelvin
   const z = loc.altitudeM;
-  const h = loc.humidity / 100; // relative humidity as decimal [0-1]
+  const h = loc.humidity / 100 // humidity as a decimal [0-1]
 
   // pre-calculating constants for later
   const A = Math.PI * ( r ** 2 );
 
-  const M_v = 18.02; // molar mass of water
-  const M_a = 28.97; // molar mass of dry air in g/mol
-  const m_a = M_a / (6.022*(10**26)) // converting molar mass to average mass of single dry air molecule, kg
+  const m_air = 4.8 * (10**-26);
+  const M_a = 28.97 // molar mass of air
+  const M_v = 18.02 // molar mass of water
   const k = 1.381 * (10**-23);
-  const R = 8.314; // J mol^-1 K^-1
+  const R = 8.31
+
+  // USED LATER TO ACCOUNT FOR AIR DENSITY
+
+  // barometric formula for air pressure
+  // https://web.tecnico.ulisboa.pt/berberan/data/43.pdf
+  const P = 101325 * Math.exp( - m_air * g * z / (k * T));
+
+  // sutherland's law for air viscosity
+  // https://doc.comsol.com/6.3/doc/com.comsol.help.cfd/cfd_ug_fluidflow_high_mach.08.43.html
+  const mu = 1.716*(10**-5) * ((T / 273)**1.5) * (273+111) / (T+111);
+
+  const A0 = 1.2378847 * (10**-5);
+  const B = -1.9121316 * (10**-2);
+  const C = 33.93711047;
+  const D = -6.3431645 * (10**3);
+  const P_sv = 1 * Math.exp(A0*(T**2) + B*T + C + D/T); // vapour pressure at saturation
+  const f = 1.00062 + (3.14*(10**-8) * P) + 5.6*(10**-7)*(T_C**2) // enhancement factor
+  const x_v = h * f * P_sv / P; // mole fraction of water
+
+  // defining constants for calculating Z
+
+  const a_0 = 1.58123 * (10**-6);
+  const a_1 = -2.9331 * (10**-8);
+  const a_2 = 1.1043 * (10**-10);
+  const b_0 = 5.707 * (10**-6);
+  const b_1 = -2.051 * (10**-8);
+  const c_0 = 1.9898 * (10**-4);
+  const c_1 = 2.376 * (10**-6);
+  const d = 1.83 * (10**-11);
+  const e0 = -0.765 * (10**-8);
+
+  const Z = 1 - ((P / T) * (a_0 + a_1*T_C + a_2*(T_C**2) + (b_0 + b_1*T_C)*x_v + (c_0 + c_1*T_C)*(x_v**2)
+          + ((P/T)**2) * (d + e0*(x_v**2))));
+
+  const rho = ((P * (M_a / 1000)) / (Z * R * T)) * (1 - x_v*(1 - (M_v / M_a)));
 
   // used later to account for wind speed
   const n = 0.37 - 0.0881*Math.log(v_wind)
@@ -122,42 +157,6 @@ function simulate(staticLoft, loc) {
     const C_l = -3.25 * (S ** 2) + 1.99 * S;
 
     // DRAG COEFFICIENT
-
-    // sutherland's law for air viscosity
-    // https://doc.comsol.com/6.3/doc/com.comsol.help.cfd/cfd_ug_fluidflow_high_mach.08.43.html
-    const mu = 1.716*(10**-5) * ((T / 273)**1.5) * (273+111) / (T+111);
-
-    // barometric formula for air pressure
-    // https://web.tecnico.ulisboa.pt/berberan/data/43.pdf
-    const P = 101325 * Math.exp( - m_a * g * z / (k * T));
-
-    // air density using ideal gas law
-
-    const A = 1.2378847 * (10**-5);
-    const B = -1.9121316 * (10**-2);
-    const C = 33.93711047;
-    const D = -6.3431645 * (10**3);
-    const P_sv = 1 * Math.exp(A*(T**2) + B*T + C + D/T); // vapour pressure at saturation
-    const f = 1.00062 + (3.14*(10**-8) * P) + 5.6*(10**-7)*(T_C**2) // enhancement factor
-    const x_v = h * f * P_sv / P; // mole fraction of water
-
-    // defining constants for calculating Z
-
-    const a_0 = 1.58123 * (10**-6);
-    const a_1 = -2.9331 * (10**-8);
-    const a_2 = 1.1043 * (10**-10);
-    const b_0 = 5.707 * (10**-6);
-    const b_1 = -2.051 * (10**-8);
-    const c_0 = 1.9898 * (10**-4);
-    const c_1 = 2.376 * (10**-6);
-    const d = 1.83 * (10**-11);
-    const e = -0.765 * (10**-8);
-
-    const Z = 1 - ((P / T) * (a_0 + a_1*T_C + a_2*(T_C**2) + (b_0 + b_1*T_C)*x_v + (c_0 + c_1*T_C)*(x_v**2)
-            + ((P/T)**2) * (d + e*(x_v**2))));
-
-    const rho = ((P * (M_a / 1000)) / (Z * R * T)) * (1 - x_v*(1 - (M_v / M_a)));
-
     // reynold's number
     const Re = rho * v_rel * (2*r) / mu;
 
@@ -177,8 +176,6 @@ function simulate(staticLoft, loc) {
 
     x += v_x * GLOBAL_PHYSICS.DT;
     y += v_y * GLOBAL_PHYSICS.DT;
-
-    
   }
 
   return x;
