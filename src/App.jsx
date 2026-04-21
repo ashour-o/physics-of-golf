@@ -40,7 +40,7 @@ const GLOBAL_PHYSICS = {
   ballMassKG: 0.04593,
   ballRadiusM: 0.02135,
   clubMassKG: 0.2,
-  clubSpeedMS: 45, 
+  clubSpeedMS: 60, 
   loftMinDEG: 0,  
   loftMaxDEG: 35,
   DT: 0.01  // timestep for simulation
