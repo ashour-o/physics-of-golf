@@ -6,7 +6,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine, Responsive
 const LOCATIONS = {
   standrews: {
     name: "St Andrews, UK",
-    period: "July 10-17th, 2027",
+    period: "July 2027",
     altitudeM: 5, 
     tempC: 18,
     humidity: 77,   // percentage
