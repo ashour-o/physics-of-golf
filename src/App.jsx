@@ -48,10 +48,11 @@ const GLOBAL_PHYSICS = {
   clubSpeedMS: 51.4, 
   loftMinDEG: 0,  
   loftMaxDEG: 35,
-  DT: 0.01  // timestep for simulation
+  DT: 0.001  // timestep for Euler's method
 } 
 
 
+// main function doing all the mathematics to simulate motion of golf ball
 function simulate(staticLoft, loc, tailWind) {
   // storing these using math variable names for brevity
   // global physics data
@@ -320,21 +321,21 @@ export default function App() {
       <main className="main">
         <div className="stats-row">
           <StatCard
-            label="Optimal loft"
+            label="Optimal static loft"
             value={`${optimalLoft}°`}
-            sub="for max distance"
+            sub="for maximum carry distance"
             highlight
           />
           <StatCard
-            label="Max distance"
+            label="Maximum carry"
             value={`${Math.round(maxDistance*10) / 10}m`}
-            sub={`with optimal loft`}
+            sub={`with optimal static loft`}
             highlight
           />
         </div>
         <div className="graphs-row">
           <div className="graph-card">
-            <div className="graph-title">Static loft vs distance</div>
+            <div className="graph-title">Carry distance as a function of static loft</div>
             <div className="graph-sub">{loc.name} · {loc.period}</div>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={distancePerLoft} margin={{ top: 5, right: 10, left: 0, bottom: 24 }}>
@@ -347,11 +348,11 @@ export default function App() {
                 />
                 <YAxis
                   tick={{ fontSize: 11 }}
-                  label={{ value: "Distance (m)", angle: -90, position: "insideLeft", offset: 10, fontSize: 11, fill: "#999" }}
+                  label={{ value: "Carry distance (m)", angle: -90, position: "insideLeft", offset: 10, fontSize: 11, fill: "#999" }}
                 />
                 <Tooltip
-                  formatter={(v) => [`${v.toFixed(1)} m`, "Carry distance"]}
-                  labelFormatter={(l) => `${l}° static loft`}
+                  formatter={(v) => [`${v.toFixed(1)}m`, "Carry distance"]}
+                  labelFormatter={(l) => `Static loft : ${l}°`}
                   contentStyle={{ fontSize: 12, borderRadius: 6, border: "1px solid rgba(0,0,0,0.1)" }}
                 />
                 <ReferenceLine
@@ -365,19 +366,19 @@ export default function App() {
                   dataKey="distance"
                   stroke="#1a6bb5"
                   strokeWidth={2}
-                  dot={{ r: 1, fill: "#1a6bb5", strokeWidth: 0 }}
+                  dot={{ r: 0, fill: "#1a6bb5", strokeWidth: 0 }}
                   activeDot={{ r: 4 }}
                 />
               </LineChart>
             </ResponsiveContainer>
             <div className="optimal-callout">
-              <strong>{Math.round(optimalLoft*10)/10}˚ static loft</strong> achieves maximum carry of {Math.round(maxDistance*10) / 10}<strong> m</strong>
-              <br/>with launch angle of <strong>{Math.round(optimalLaunchAngle*10)/10}˚</strong>
+              <strong>{Math.round(optimalLoft*10)/10}˚ static loft</strong> achieves a maximum carry of <strong>{Math.round(maxDistance*10) / 10}m</strong>
+              <br/>with a launch angle of <strong>{Math.round(optimalLaunchAngle*10)/10}˚</strong>
             </div>
           </div>
           <div className="graph-card">
-            <div className="graph-title">Ball trajectory by loft angle</div>
-            <div className="graph-sub">{loc.name} · lofts {GLOBAL_PHYSICS.loftMinDEG}-{GLOBAL_PHYSICS.loftMaxDEG}° · optimal highlighted</div>
+            <div className="graph-title">Ball trajectory for a range of static lofts</div>
+            <div className="graph-sub">{loc.name} · static lofts {GLOBAL_PHYSICS.loftMinDEG}-{GLOBAL_PHYSICS.loftMaxDEG}°</div>
 
             <ResponsiveContainer width="100%" height={280}>
               <LineChart margin={{ top: 5, right: 10, left: 0, bottom: 24 }}>
@@ -386,7 +387,7 @@ export default function App() {
                   dataKey="x"
                   type="number"
                   tick={{ fontSize: 11 }}
-                  label={{ value: "Horizontal distance (m)", position: "insideBottom", offset: -14, fontSize: 11, fill: "#999" }}
+                  label={{ value: "Horizontal displacement (m)", position: "insideBottom", offset: -14, fontSize: 11, fill: "#999" }}
                 />
                 <YAxis
                   tick={{ fontSize: 11 }}
@@ -411,8 +412,8 @@ export default function App() {
             </ResponsiveContainer>
 
             <div className="optimal-callout">
-              <strong style={{ color: "#ed133f" }}>Red</strong> = {Math.round(optimalLoft * 10) / 10}° optimal &nbsp;·&nbsp;
-              <strong style={{ color: "#27a3c2" }}>Blue</strong> = all other lofts
+              <strong style={{ color: "#ed133f" }}>Red</strong>: optimal static loft {Math.round(optimalLoft * 10) / 10}° &nbsp;&nbsp;
+              <strong style={{ color: "#27a3c2" }}>Blue</strong>: integer static lofts from 0-35˚
             </div>
           </div>
         </div>
@@ -422,7 +423,7 @@ export default function App() {
             onClick={toggleDetails}
           >
             <span className={`details-arrow${detailsOpen ? " open" : ""}`}>▼</span>
-            Location &amp; physics details
+            Environmental and physical / mathematical values
           </button>
 
           {detailsOpen && (
@@ -453,12 +454,12 @@ export default function App() {
                   </div>
                 ))}
                 <div className="details-row">
-                  <span className="details-row-label">Wind speed</span>
-                  <button
+                  <span className="details-row-label">Wind speed ({tailWind ? "Tailwind" : "Headwind"})</span>
+                  <button 
                       onClick={() => setTailWind(w => !w)}
                       className={`wind-toggle${tailWind ? " tailwind" : ""}`}
                     >
-                      {tailWind ? "Tailwind" : "Headwind"}
+                      {tailWind ? "Change to Headwind" : "Change to Tailwind"}
                     </button>
                   {locationKey === "custom" ? (
                     <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -479,7 +480,7 @@ export default function App() {
               </div>
               </div>
               <div className="details-section">
-                <div className="details-head">Global physics constants</div>
+                <div className="details-head">Physical and mathematical values</div>
                 {[
                   ["Ball mass", `${GLOBAL_PHYSICS.ballMassKG} kg`],
                   ["Ball radius", `${GLOBAL_PHYSICS.ballRadiusM} m`],
