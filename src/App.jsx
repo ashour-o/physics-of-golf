@@ -5,7 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine, Responsive
 
 const LOCATIONS = {
   standrews: {
-    name: "St Andrews",
+    name: "St Andrews, UK",
     period: "July 10-17th, 2027",
     altitudeM: 5, 
     tempC: 18,
@@ -15,7 +15,7 @@ const LOCATIONS = {
   },
 
   lapaz: {
-    name: "Bolivia",
+    name: "La Paz, Bolivia",
     period: "August 2027",
     altitudeM: 3246,
     tempC: 14,
@@ -25,7 +25,7 @@ const LOCATIONS = {
   },
 
   philippines: {
-    name: "Philippines",
+    name: "Davao City, Philippines",
     period: "January 2027",
     altitudeM: 50,
     tempC: 31,
@@ -48,17 +48,19 @@ const GLOBAL_PHYSICS = {
   clubSpeedMS: 51.4, 
   loftMinDEG: 0,  
   loftMaxDEG: 35,
-  DT: 0.001  // timestep for simulation
+  DT: 0.01  // timestep for simulation
 } 
 
 
 function simulate(staticLoft, loc, tailWind) {
   // storing these using math variable names for brevity
+  // global physics data
   const v_ci = GLOBAL_PHYSICS.clubSpeedMS;
   const M = GLOBAL_PHYSICS.clubMassKG;
   const m = GLOBAL_PHYSICS.ballMassKG;
   const r = GLOBAL_PHYSICS.ballRadiusM;
 
+  // per-location data
   const g = loc.gravity;
   const v_wind = tailWind ? loc.windSpeedMS : -loc.windSpeedMS;
   const T_C = loc.tempC // celsius
@@ -78,13 +80,12 @@ function simulate(staticLoft, loc, tailWind) {
   // USED LATER TO ACCOUNT FOR AIR DENSITY
 
   // barometric formula for air pressure
-  // https://web.tecnico.ulisboa.pt/berberan/data/43.pdf
   const P = 101325 * Math.exp( - m_air * g * z / (k * T));
 
   // sutherland's law for air viscosity
-  // https://doc.comsol.com/6.3/doc/com.comsol.help.cfd/cfd_ug_fluidflow_high_mach.08.43.html
   const mu = 1.716*(10**-5) * ((T / 273)**1.5) * (273+111) / (T+111);
 
+  // calculating x_v 
   const A0 = 1.2378847 * (10**-5);
   const B = -1.9121316 * (10**-2);
   const C = 33.93711047;
@@ -94,7 +95,6 @@ function simulate(staticLoft, loc, tailWind) {
   const x_v = h * f * P_sv / P; // mole fraction of water
 
   // defining constants for calculating Z
-
   const a_0 = 1.58123 * (10**-6);
   const a_1 = -2.9331 * (10**-8);
   const a_2 = 1.1043 * (10**-10);
@@ -108,12 +108,12 @@ function simulate(staticLoft, loc, tailWind) {
   const Z = 1 - ((P / T) * (a_0 + a_1*T_C + a_2*(T_C**2) + (b_0 + b_1*T_C)*x_v + (c_0 + c_1*T_C)*(x_v**2)
           + ((P/T)**2) * (d + e0*(x_v**2))));
 
+  // calculating air density
   const rho = ((P * (M_a / 1000)) / (Z * R * T)) * (1 - x_v*(1 - (M_v / M_a)));
 
   // used later to account for wind speed
   const n = 0.37 - 0.0881*Math.log(Math.abs(v_wind))
 
-  // BEGINNING OF THE MATH IN RESEARCH DOC
 
   // dynamic loft
   const thetaDeg = staticLoft + 3.3
@@ -147,13 +147,14 @@ function simulate(staticLoft, loc, tailWind) {
   let v_x = v_bo * Math.cos(psi);
   let v_y = v_bo * Math.sin(psi);
 
+  // stores ball path for trajectory graph
   let points = [];
   while (y >= 0) {
-    // apply a headwind
+    // apply wind
     const v_windcurrent = v_wind * ((y / 10)**n);
-    const v_relx = v_x - v_windcurrent; // v_windcurrent > 0 means tail wind and vice versa
+    const v_relx = v_x - v_windcurrent; // v_windcurrent > 0 means tail wind
 
-    // calculate new angle based on vy/vx
+    // calculate angle (relative motion to the air)
     let psi = Math.atan(v_y / v_relx);
 
     // relative speed of ball
@@ -170,29 +171,33 @@ function simulate(staticLoft, loc, tailWind) {
     // drag coefficient (at high speeds)
     const C_d = 1.91*(10**-11)*(Re**2) - 5.40*(10**-6)*(Re) + 0.56;
 
+    // calculate forces
     const F_l = 0.5 * rho * A * C_l * v_rel**2;
     const F_d = 0.5 * rho * A * C_d * v_rel**2;
 
+    // calculate accelerations
     const a_x = (-F_d * Math.cos(psi) - F_l * Math.sin(psi)) / m;
     const a_y = (-F_d * Math.sin(psi) + F_l * Math.cos(psi)) / m - g;
     const a_w = -0.00002 * w_b * v_rel / r
 
+    // calculate velocities
     v_x += a_x * GLOBAL_PHYSICS.DT;
     v_y += a_y * GLOBAL_PHYSICS.DT;
     w_b += a_w * GLOBAL_PHYSICS.DT;
 
+    // update position
     x += v_x * GLOBAL_PHYSICS.DT;
     y += v_y * GLOBAL_PHYSICS.DT;
 
+    // stores trajectory of ball
     points.push({x, y: Math.max(0, y)})
   }
 
   return {points, psi_b};
 }
 
-
+// returns the max distance and associated launch angle from the simulate function
 function getDistance(loftDeg, loc, tailWind) {
-  // returns the max distance and associated launch angle from the simulate function
   const info = simulate(loftDeg, loc, tailWind); // has both trajectory and launch angle
   const max_distance = info.points[info.points.length - 1].x;
   return [max_distance, info.psi_b * 180/Math.PI];
@@ -205,7 +210,6 @@ function StatCard({ label, value, sub, highlight }) {
     <div className={`stat-card${highlight ? " highlight" : ""}`}>
       <div className="stat-label">{label}</div>
       <div className="stat-value">{value}</div>
-      {/* Only render the sub line if a sub prop was provided */}
       {sub && <div className="stat-sub">{sub}</div>}
     </div>
   );
@@ -350,7 +354,6 @@ export default function App() {
                   labelFormatter={(l) => `${l}° static loft`}
                   contentStyle={{ fontSize: 12, borderRadius: 6, border: "1px solid rgba(0,0,0,0.1)" }}
                 />
-                {/* Vertical dashed line at the optimal loft */}
                 <ReferenceLine
                   x={optimalLoft}
                   stroke="#2d5a27"
