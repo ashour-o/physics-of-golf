@@ -338,6 +338,7 @@ export default function App() {
                 <XAxis
                   dataKey="loft"
                   tick={{ fontSize: 11 }}
+                  ticks={[0, 5, 10, 15, 20, 25, 30, 35]}
                   label={{ value: "Static loft (°)", position: "insideBottom", offset: -14, fontSize: 11, fill: "#999" }}
                 />
                 <YAxis
