@@ -7,31 +7,31 @@ const LOCATIONS = {
   standrews: {
     name: "St Andrews",
     period: "July 10-17th, 2027",
-    altitudeM: 24, 
-    tempC: 14.6,
+    altitudeM: 5, 
+    tempC: 18,
     humidity: 77,   // percentage
-    windSpeedMS: 4.42,  
-    gravity: 9.81
+    windSpeedMS: 4.39,  
+    gravity: 9.816
   },
 
   lapaz: {
     name: "Bolivia",
     period: "August 2027",
-    altitudeM: 3600,
-    tempC: 5.2,
+    altitudeM: 3246,
+    tempC: 14,
     humidity: 67,
-    windSpeedMS: 3.14,
-    gravity: 9.77
+    windSpeedMS: 3.08,
+    gravity: 9.775
   },
 
   philippines: {
     name: "Philippines",
     period: "January 2027",
-    altitudeM: 300,
-    tempC: 6.3,
-    humidity: 79,
-    windSpeedMS: 3.9,
-    gravity: 9.81
+    altitudeM: 50,
+    tempC: 31,
+    humidity: 82,
+    windSpeedMS: 2.25,
+    gravity: 9.781
   },
 
   custom: {
@@ -45,10 +45,10 @@ const GLOBAL_PHYSICS = {
   ballMassKG: 0.04593,
   ballRadiusM: 0.02135,
   clubMassKG: 0.2,
-  clubSpeedMS: 55, 
+  clubSpeedMS: 51.4, 
   loftMinDEG: 0,  
   loftMaxDEG: 35,
-  DT: 0.01  // timestep for simulation
+  DT: 0.001  // timestep for simulation
 } 
 
 
@@ -60,7 +60,7 @@ function simulate(staticLoft, loc, tailWind) {
   const r = GLOBAL_PHYSICS.ballRadiusM;
 
   const g = loc.gravity;
-  const v_wind = tailWind ? -loc.windSpeedMS : loc.windSpeedMS;
+  const v_wind = tailWind ? loc.windSpeedMS : -loc.windSpeedMS;
   const T_C = loc.tempC // celsius
   const T = T_C + 273.15; // convert to kelvin
   const z = loc.altitudeM;
@@ -149,7 +149,7 @@ function simulate(staticLoft, loc, tailWind) {
 
   let points = [];
   while (y >= 0) {
-    // apply a wind
+    // apply a headwind
     const v_windcurrent = v_wind * ((y / 10)**n);
     const v_relx = v_x - v_windcurrent; // v_windcurrent > 0 means tail wind and vice versa
 
@@ -287,10 +287,10 @@ export default function App() {
   const allPaths = useMemo(() => {
     return loftAnglesInt.map(loft => ({
       loft,
-      path: simulate(loft, loc).points,
+      path: simulate(loft, loc, tailWind).points,
       isOptimal: Math.round(optimalLoft) === loft,
     }));
-  }, [locationKey, optimalLoft, customLoc]);
+  }, [locationKey, optimalLoft, customLoc, tailWind]);
 
 
   return (
@@ -368,7 +368,7 @@ export default function App() {
               </LineChart>
             </ResponsiveContainer>
             <div className="optimal-callout">
-              <strong>{Math.round(optimalLoft*10)/10}˚ loft</strong> achieves maximum carry of {Math.round(maxDistance*10) / 10}<strong> m</strong>
+              <strong>{Math.round(optimalLoft*10)/10}˚ static loft</strong> achieves maximum carry of {Math.round(maxDistance*10) / 10}<strong> m</strong>
               <br/>with launch angle of <strong>{Math.round(optimalLaunchAngle*10)/10}˚</strong>
             </div>
           </div>
