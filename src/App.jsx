@@ -17,7 +17,7 @@ const LOCATIONS = {
   lapaz: {
     name: "La Paz, Bolivia",
     period: "August 2027",
-    altitudeM: 3246,
+    altitudeM: 3315,
     tempC: 14,
     humidity: 67,
     windSpeedMS: 3.08,
