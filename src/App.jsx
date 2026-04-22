@@ -131,11 +131,10 @@ function simulate(staticLoft, loc, tailWind) {
   const v_bfp = -v_ci * Math.sin(theta) / (1 + (m/M) + (m * (r**2) / I));
 
   // launch angle of ball (initial)
-  const psi_b = theta + Math.atan(v_bfp / v_bfn);
-  let psi = psi_b;
+  const psi = theta + Math.atan(v_bfp / v_bfn);
 
   // speed of ball
-  const v_bo = Math.sqrt( (v_bfn ** 2) + (v_bfp ** 2) );
+  const v_b = Math.sqrt( (v_bfn ** 2) + (v_bfp ** 2) );
 
   // angular velocity of ball
   let w_b = -m * v_bfp * r / I;
@@ -145,8 +144,8 @@ function simulate(staticLoft, loc, tailWind) {
   let y = 0;
 
   // resolving initial velocity of ball relative to x/y directions
-  let v_x = v_bo * Math.cos(psi);
-  let v_y = v_bo * Math.sin(psi);
+  let v_x = v_b * Math.cos(psi);
+  let v_y = v_b * Math.sin(psi);
 
   // stores ball path for trajectory graph
   let points = [];
@@ -156,7 +155,7 @@ function simulate(staticLoft, loc, tailWind) {
     const v_relx = v_x - v_windcurrent; // v_windcurrent > 0 means tail wind
 
     // calculate angle (relative motion to the air)
-    let psi = Math.atan(v_y / v_relx);
+    let phi = Math.atan(v_y / v_relx);
 
     // relative speed of ball
     const v_rel = Math.sqrt( (v_relx ** 2) + (v_y ** 2) );
@@ -177,8 +176,8 @@ function simulate(staticLoft, loc, tailWind) {
     const F_d = 0.5 * rho * A * C_d * v_rel**2;
 
     // calculate accelerations
-    const a_x = (-F_d * Math.cos(psi) - F_l * Math.sin(psi)) / m;
-    const a_y = (-F_d * Math.sin(psi) + F_l * Math.cos(psi)) / m - g;
+    const a_x = (-F_d * Math.cos(phi) - F_l * Math.sin(phi)) / m;
+    const a_y = (-F_d * Math.sin(phi) + F_l * Math.cos(phi)) / m - g;
     const a_w = -0.00002 * w_b * v_rel / r
 
     // calculate velocities
@@ -194,14 +193,14 @@ function simulate(staticLoft, loc, tailWind) {
     points.push({x, y: Math.max(0, y)})
   }
 
-  return {points, psi_b};
+  return {points, psi};
 }
 
 // returns the max distance and associated launch angle from the simulate function
 function getDistance(loftDeg, loc, tailWind) {
   const info = simulate(loftDeg, loc, tailWind); // has both trajectory and launch angle
   const max_distance = info.points[info.points.length - 1].x;
-  return [max_distance, info.psi_b * 180/Math.PI];
+  return [max_distance, info.psi * 180/Math.PI];
 }
 
 
