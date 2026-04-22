@@ -125,6 +125,7 @@ body {
 .graphs-row {
   display: flex;
   gap: 20px;
+  flex-direction: column;
 }
 
 .graph-card {
@@ -244,4 +245,53 @@ body {
   font-weight: 600;
   font-size: 12px;
   color: #222;
+}
+
+.wind-toggle {
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: 1px solid rgba(0,0,0,0.15);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  color:#2f7d15;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.wind-toggle.tailwind {
+  border-color: #2d5a27;
+  background: #f0f8ee;
+  color: #2d5a27;
+}
+
+.custom-input {
+  width: 70px;
+  padding: 3px 7px;
+  border: 1px solid rgba(0,0,0,0.15);
+  border-radius: 4px;
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+  background: #f9f9f9;
+  color: #222;
+  -moz-appearance: textfield;
+}
+
+.custom-input:focus {
+  outline: none;
+  border-color: #1a6bb5;
+}
+
+.custom-input::-webkit-outer-spin-button,
+.custom-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.custom-input:focus {
+  outline: none;
+  border-color: #1a6bb5;
+  background: #fff;
 }

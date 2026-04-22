@@ -1,5 +1,5 @@
 import "./App.css";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 
@@ -32,6 +32,11 @@ const LOCATIONS = {
     humidity: 79,
     windSpeedMS: 3.9,
     gravity: 9.81
+  },
+
+  custom: {
+    name: "Custom",
+    period: "User-defined"
   }
 }
 
@@ -40,14 +45,14 @@ const GLOBAL_PHYSICS = {
   ballMassKG: 0.04593,
   ballRadiusM: 0.02135,
   clubMassKG: 0.2,
-  clubSpeedMS: 60, 
+  clubSpeedMS: 55, 
   loftMinDEG: 0,  
   loftMaxDEG: 35,
   DT: 0.01  // timestep for simulation
 } 
 
 
-function simulate(staticLoft, loc) {
+function simulate(staticLoft, loc, tailWind) {
   // storing these using math variable names for brevity
   const v_ci = GLOBAL_PHYSICS.clubSpeedMS;
   const M = GLOBAL_PHYSICS.clubMassKG;
@@ -55,7 +60,7 @@ function simulate(staticLoft, loc) {
   const r = GLOBAL_PHYSICS.ballRadiusM;
 
   const g = loc.gravity;
-  const v_wind = loc.windSpeedMS;
+  const v_wind = tailWind ? -loc.windSpeedMS : loc.windSpeedMS;
   const T_C = loc.tempC // celsius
   const T = T_C + 273.15; // convert to kelvin
   const z = loc.altitudeM;
@@ -106,7 +111,7 @@ function simulate(staticLoft, loc) {
   const rho = ((P * (M_a / 1000)) / (Z * R * T)) * (1 - x_v*(1 - (M_v / M_a)));
 
   // used later to account for wind speed
-  const n = 0.37 - 0.0881*Math.log(v_wind)
+  const n = 0.37 - 0.0881*Math.log(Math.abs(v_wind))
 
   // BEGINNING OF THE MATH IN RESEARCH DOC
 
@@ -124,8 +129,9 @@ function simulate(staticLoft, loc) {
   const v_bfn = (1+e) * v_ci * Math.cos(theta) / (1 + (m / M));
   const v_bfp = -v_ci * Math.sin(theta) / (1 + (m/M) + (m * (r**2) / I));
 
-  // launch angle of ball
-  let psi = theta + Math.atan(v_bfp / v_bfn);
+  // launch angle of ball (initial)
+  const psi_b = theta + Math.atan(v_bfp / v_bfn);
+  let psi = psi_b;
 
   // speed of ball
   const v_bo = Math.sqrt( (v_bfn ** 2) + (v_bfp ** 2) );
@@ -141,6 +147,7 @@ function simulate(staticLoft, loc) {
   let v_x = v_bo * Math.cos(psi);
   let v_y = v_bo * Math.sin(psi);
 
+  let points = [];
   while (y >= 0) {
     // apply a wind
     const v_windcurrent = v_wind * ((y / 10)**n);
@@ -176,17 +183,19 @@ function simulate(staticLoft, loc) {
 
     x += v_x * GLOBAL_PHYSICS.DT;
     y += v_y * GLOBAL_PHYSICS.DT;
+
+    points.push({x, y: Math.max(0, y)})
   }
 
-  return x;
+  return {points, psi_b};
 }
 
 
-function getDistance(loftDeg, loc) {
-  // seems arbitrary but useful later on if trajectory paths are used
-  // since simulate function will return a path
-  // this is just a bit easier to work with than [0]'ing a returned array
-  return simulate(loftDeg, loc)
+function getDistance(loftDeg, loc, tailWind) {
+  // returns the max distance and associated launch angle from the simulate function
+  const info = simulate(loftDeg, loc, tailWind); // has both trajectory and launch angle
+  const max_distance = info.points[info.points.length - 1].x;
+  return [max_distance, info.psi_b * 180/Math.PI];
 }
 
 
@@ -204,12 +213,39 @@ function StatCard({ label, value, sub, highlight }) {
 
 
 export default function App() {
+  // used to auto-scroll when opening the information tab at bottom
+  const detailsRef = useRef(null);
+  function toggleDetails() {
+    const opening = !detailsOpen;
+    setDetailsOpen(opening);
+    if (opening) {
+      setTimeout(() => {
+        detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 0);
+    }
+  }
+
+  // used to help change values for the custom location
+  function updateCustomLoc(field, value) {
+    setCustomLoc(prev => ({ ...prev, [field]: parseFloat(value) || 0 }));
+  }
+
   // retrieving constants and setting variables
-  
   const [locationKey, setLocationKey] = useState("standrews");
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [tailWind, setTailWind] = useState(false);
+  const [customLoc, setCustomLoc] = useState({
+    name: "Custom",
+    period: "Custom",
+    altitudeM: 100,
+    tempC: 15,
+    humidity: 70,
+    windSpeedMS: 3,
+    gravity: 9.81
+  });
 
-  const loc = LOCATIONS[locationKey];
+  // uses custom loc if selected
+  const loc = locationKey === "custom" ? customLoc : LOCATIONS[locationKey];
 
   const loftAngles = useMemo(() => {
     const angles = [];
@@ -222,12 +258,13 @@ export default function App() {
 
   // running simulate function to get dict assocating each loft with a distance
   const distancePerLoft = useMemo(() => {
-    return loftAngles.map(loft => ({
-      loft,
-      distance: getDistance(loft, loc),
-    }));
-  }, [locationKey]);
+    return loftAngles.map(loft => {
+      const [distance, launchAngle] = getDistance(loft, loc, tailWind);
+      return { loft, distance, launchAngle };
+    });
+  }, [locationKey, tailWind, customLoc]);
 
+  // finding the element of the distancePerLoft dict that has the highest distance 
   const optimalEntry   = distancePerLoft.reduce(
     (best, d) => d.distance > best.distance ? d : best,
     distancePerLoft[0]
@@ -235,6 +272,25 @@ export default function App() {
 
   const optimalLoft = optimalEntry.loft;
   const maxDistance = optimalEntry.distance;
+  const optimalLaunchAngle = optimalEntry.launchAngle;
+
+
+  // used to plot trajectories as we only want steps of 1˚ for each trajectory path shown
+  const loftAnglesInt = useMemo(() => {
+    const angles = [];
+    for (let i = GLOBAL_PHYSICS.loftMinDEG; i <= GLOBAL_PHYSICS.loftMaxDEG; i++) {
+      angles.push(i);
+    }
+    return angles;
+  }, []);
+
+  const allPaths = useMemo(() => {
+    return loftAnglesInt.map(loft => ({
+      loft,
+      path: simulate(loft, loc).points,
+      isOptimal: Math.round(optimalLoft) === loft,
+    }));
+  }, [locationKey, optimalLoft, customLoc]);
 
 
   return (
@@ -312,13 +368,54 @@ export default function App() {
             </ResponsiveContainer>
             <div className="optimal-callout">
               <strong>{Math.round(optimalLoft*10)/10}˚ loft</strong> achieves maximum carry of {Math.round(maxDistance*10) / 10}<strong> m</strong>
+              <br/>with launch angle of <strong>{Math.round(optimalLaunchAngle*10)/10}˚</strong>
+            </div>
+          </div>
+          <div className="graph-card">
+            <div className="graph-title">Ball trajectory by loft angle</div>
+            <div className="graph-sub">{loc.name} · lofts {GLOBAL_PHYSICS.loftMinDEG}-{GLOBAL_PHYSICS.loftMaxDEG}° · optimal highlighted</div>
+
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart margin={{ top: 5, right: 10, left: 0, bottom: 24 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
+                <XAxis
+                  dataKey="x"
+                  type="number"
+                  tick={{ fontSize: 11 }}
+                  label={{ value: "Horizontal distance (m)", position: "insideBottom", offset: -14, fontSize: 11, fill: "#999" }}
+                />
+                <YAxis
+                  tick={{ fontSize: 11 }}
+                  label={{ value: "Height (m)", angle: -90, position: "insideLeft", offset: 10, fontSize: 11, fill: "#999" }}
+                />
+                {allPaths.map(({ loft, path, isOptimal }) => (
+                  <Line
+                    key={loft}
+                    data={path}
+                    type="monotone"
+                    dataKey="y"
+                    stroke={isOptimal ? "#ed133f" : "#16b8e0"}
+                    strokeWidth={isOptimal ? 2.5 : 1.2}
+                    strokeOpacity={isOptimal ? 1 : 0.3}
+                    dot={false}
+                    activeDot={false}
+                    isAnimationActive={false}
+                    name={`${loft}°`}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+
+            <div className="optimal-callout">
+              <strong style={{ color: "#ed133f" }}>Red</strong> = {Math.round(optimalLoft * 10) / 10}° optimal &nbsp;·&nbsp;
+              <strong style={{ color: "#27a3c2" }}>Blue</strong> = all other lofts
             </div>
           </div>
         </div>
-        <div className="details-wrap">
+        <div className="details-wrap" ref={detailsRef}>
           <button
             className="details-toggle"
-            onClick={() => setDetailsOpen(o => !o)}
+            onClick={toggleDetails}
           >
             <span className={`details-arrow${detailsOpen ? " open" : ""}`}>▼</span>
             Location &amp; physics details
@@ -329,17 +426,48 @@ export default function App() {
               <div className="details-section">
                 <div className="details-head">Location - {loc.name}</div>
                 {[
-                  ["Altitude",          `${loc.altitudeM} m`],
-                  ["Temperature",       `${loc.tempC} °C`],
-                  ["Humidity",          `${loc.humidity} %`],
-                  ["Wind speed",        `${loc.windSpeedMS} m/s`],
-                  ["Gravity",           `${loc.gravity} m/s²`],
-                ].map(([label, value]) => (
+                  ["altitudeM", "Altitude", "m"],
+                  ["tempC", "Temperature", "°C"],
+                  ["humidity", "Humidity", "%"],
+                  ["gravity", "Gravity", "m/s²"],
+                ].map(([field, label, unit]) => (
                   <div key={label} className="details-row">
                     <span className="details-row-label">{label}</span>
-                    <span className="details-row-value">{value}</span>
+                    {locationKey === "custom" ? (
+                      <span style={{ display: "flex", alignItems: "center", gap: 4, "justifyContent": "flex-end" }}>
+                        <input
+                          type="number"
+                          value={customLoc[field]}
+                          onChange={e => updateCustomLoc(field, e.target.value)}
+                          className="custom-input"
+                        />
+                        <span className="details-row-value" style={{ color: "#aaa", minWidth:28 }}>{unit}</span>
+                      </span>
+                    ) : (
+                      <span className="details-row-value">{loc[field]} {unit}</span>
+                    )}
                   </div>
                 ))}
+                <div className="details-row">
+                  <span className="details-row-label">Wind speed</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button
+                      onClick={() => setTailWind(w => !w)}
+                      className={`wind-toggle${tailWind ? " tailwind" : ""}`}
+                    >
+                      {tailWind ? "Tailwind" : "Headwind"}
+                    </button>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4, "justifyContent": "flex-end" }}>
+                      <input
+                        type="number"
+                        value={customLoc["windSpeedMS"]}
+                        onChange={e => updateCustomLoc("windSpeedMS", e.target.value)}
+                        className="custom-input"
+                      />
+                      <span className="details-row-value" style={{ color: "#aaa", minWidth:28 }}>m/s</span>
+                    </span>
+                  </span>
+              </div>
               </div>
               <div className="details-section">
                 <div className="details-head">Global physics constants</div>
