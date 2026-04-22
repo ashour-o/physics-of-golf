@@ -450,23 +450,28 @@ export default function App() {
                 ))}
                 <div className="details-row">
                   <span className="details-row-label">Wind speed</span>
-                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <button
+                  <button
                       onClick={() => setTailWind(w => !w)}
                       className={`wind-toggle${tailWind ? " tailwind" : ""}`}
                     >
                       {tailWind ? "Tailwind" : "Headwind"}
                     </button>
-                    <span style={{ display: "flex", alignItems: "center", gap: 4, "justifyContent": "flex-end" }}>
-                      <input
-                        type="number"
-                        value={customLoc["windSpeedMS"]}
-                        onChange={e => updateCustomLoc("windSpeedMS", e.target.value)}
-                        className="custom-input"
-                      />
-                      <span className="details-row-value" style={{ color: "#aaa", minWidth:28 }}>m/s</span>
+                  {locationKey === "custom" ? (
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 4, "justifyContent": "flex-end" }}>
+                        <input
+                          type="number"
+                          value={customLoc["windSpeedMS"]}
+                          onChange={e => updateCustomLoc("windSpeedMS", e.target.value)}
+                          className="custom-input"
+                        />
+                        <span className="details-row-value" style={{ color: "#aaa", minWidth:28 }}>m/s</span>
+                      </span>
                     </span>
-                  </span>
+                  ) : (
+                    <span className="details-row-value">{loc["windSpeedMS"]} m/s</span>
+                  )}
+                  
               </div>
               </div>
               <div className="details-section">
