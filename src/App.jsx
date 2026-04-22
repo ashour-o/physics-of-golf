@@ -42,7 +42,7 @@ const LOCATIONS = {
 
 
 const GLOBAL_PHYSICS = {
-  ballMassKG: 0.04593,
+  ballMassKG: 0.0459,
   ballRadiusM: 0.02135,
   clubMassKG: 0.2,
   clubSpeedMS: 51.4, 
