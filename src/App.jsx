@@ -382,13 +382,13 @@ export default function App() {
                   x={optimalHeadwind.loft}
                   stroke="#2d5a27"
                   strokeDasharray="4 3"
-                  label={{ value: `${optimalHeadwind.loft}° optimal`, position: "top", fontSize: 10, fill: "#2d5a27" }}
+                  label={{ value: `${optimalHeadwind.loft}°`, position: "top", fontSize: 10, fill: "#2d5a27" }}
                 />
                 <ReferenceLine
                   x={optimalTailwind.loft}
                   stroke="#2d5a27"
                   strokeDasharray="4 3"
-                  label={{ value: `${optimalTailwind.loft}° optimal`, position: "top", fontSize: 10, fill: "#2d5a27" }}
+                  label={{ value: `${optimalTailwind.loft}°`, position: "top", fontSize: 10, fill: "#2d5a27" }}
                 />
                 <Line
                   type="monotone"
@@ -454,9 +454,15 @@ export default function App() {
             </ResponsiveContainer>
 
             <div className="optimal-callout">
-              <strong style={{ color: "#ed133f" }}>Red</strong>: optimal static loft {Math.round(optimalHeadwind.loft * 10) / 10}° &nbsp;&nbsp;
+              <strong style={{ color: "#ed133f" }}>Red</strong>: optimal static loft {Math.round((tailWind ? optimalTailwind.loft : optimalHeadwind.loft) * 10) / 10}° &nbsp;&nbsp;
               <strong style={{ color: "#27a3c2" }}>Blue</strong>: integer static lofts from 0-35˚
             </div>
+            <button
+              onClick={() => setTailWind(w => !w)}
+              className={`wind-toggle${tailWind ? " tailwind" : ""}`}
+            >
+              {tailWind ? "Change to Headwind" : "Change to Tailwind"}
+            </button>
           </div>
         </div>
         <div className="details-wrap" ref={detailsRef}>
@@ -496,13 +502,7 @@ export default function App() {
                   </div>
                 ))}
                 <div className="details-row">
-                  <span className="details-row-label">Wind speed ({tailWind ? "Tailwind" : "Headwind"})</span>
-                  <button 
-                      onClick={() => setTailWind(w => !w)}
-                      className={`wind-toggle${tailWind ? " tailwind" : ""}`}
-                    >
-                      {tailWind ? "Change to Headwind" : "Change to Tailwind"}
-                    </button>
+                  <span className="details-row-label">Wind speed</span>
                   {locationKey === "custom" ? (
                     <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ display: "flex", alignItems: "center", gap: 4, "justifyContent": "flex-end" }}>
