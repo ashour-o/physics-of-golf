@@ -380,15 +380,15 @@ export default function App() {
                 />
                 <ReferenceLine
                   x={optimalHeadwind.loft}
-                  stroke="#2d5a27"
+                  stroke="#1a6bb5"
                   strokeDasharray="4 3"
-                  label={{ value: `${optimalHeadwind.loft}°`, position: "top", fontSize: 10, fill: "#2d5a27" }}
+                  label={{ value: `${optimalHeadwind.loft}°`, position: "top", fontSize: 10, fill: "#1a6bb5" }}
                 />
                 <ReferenceLine
                   x={optimalTailwind.loft}
-                  stroke="#2d5a27"
+                  stroke="#ed133f"
                   strokeDasharray="4 3"
-                  label={{ value: `${optimalTailwind.loft}°`, position: "top", fontSize: 10, fill: "#2d5a27" }}
+                  label={{ value: `${optimalTailwind.loft}°`, position: "top", fontSize: 10, fill: "#ed133f" }}
                 />
                 <Line
                   type="monotone"
