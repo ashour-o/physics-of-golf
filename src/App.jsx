@@ -151,10 +151,7 @@ function simulate(staticLoft, loc, tailWind) {
   let points = [];
   while (y >= 0) {
     // apply wind
-    const v_windcurrent = v_wind * ((y / 10)**n);
-    if (v_wind == 0) {
-      v_windcurrent = 0;
-    }
+    const v_windcurrent = v_wind === 0 ? 0 : v_wind * ((y / 10)**n); // 0 if v_wind = 0, otherwise uses the formula
     const v_relx = v_x - v_windcurrent; // v_windcurrent > 0 means tail wind
 
     // calculate angle (relative motion to the air)
