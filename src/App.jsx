@@ -190,6 +190,7 @@ function simulate(staticLoft, loc, tailWind) {
     y += v_y * GLOBAL_PHYSICS.DT;
 
     // stores trajectory of ball
+    
     points.push({x, y: Math.max(0, y)})
   }
 
@@ -213,6 +214,43 @@ function StatCard({ label, value, sub, highlight }) {
       {sub && <div className="stat-sub">{sub}</div>}
     </div>
   );
+}
+
+
+function findOptimal(data, key) {
+  return data.reduce(
+    (best, d) => d[key] > best[key] ? d : best,
+    data[0]
+  );
+}
+
+
+function getDistancePerLoft(loftAngles, loc) {
+  // running the simulate function on every loft and storing the results + launch angles
+  const data = loftAngles.map(loft => {
+    const [headwindDistance, headwindLaunchAngle] = getDistance(loft, loc, false);
+    const [tailwindDistance, tailwindLaunchAngle] = getDistance(loft, loc, true);
+    return { loft, headwindDistance, headwindLaunchAngle, tailwindDistance, tailwindLaunchAngle };
+  });
+
+  // finding the optimal distance from the data
+  const rawOptimalHeadwind = findOptimal(data, "headwindDistance");
+  const rawOptimalTailwind = findOptimal(data, "tailwindDistance");
+
+  // cleaning up the return to make it nicer to refer to
+  const optimalHeadwind = {
+    loft:        rawOptimalHeadwind.loft,
+    distance:    rawOptimalHeadwind.headwindDistance,
+    launchAngle: rawOptimalHeadwind.headwindLaunchAngle,
+  };
+
+  const optimalTailwind = {
+    loft:        rawOptimalTailwind.loft,
+    distance:    rawOptimalTailwind.tailwindDistance,
+    launchAngle: rawOptimalTailwind.tailwindLaunchAngle,
+  };
+
+  return { data, optimalHeadwind, optimalTailwind };
 }
 
 
@@ -260,24 +298,10 @@ export default function App() {
   }, []);
 
 
-  // running simulate function to get dict assocating each loft with a distance
-  const distancePerLoft = useMemo(() => {
-    return loftAngles.map(loft => {
-      const [distance, launchAngle] = getDistance(loft, loc, tailWind);
-      return { loft, distance, launchAngle };
-    });
-  }, [locationKey, tailWind, customLoc]);
-
-  // finding the element of the distancePerLoft dict that has the highest distance 
-  const optimalEntry   = distancePerLoft.reduce(
-    (best, d) => d.distance > best.distance ? d : best,
-    distancePerLoft[0]
-  );
-
-  const optimalLoft = optimalEntry.loft;
-  const maxDistance = optimalEntry.distance;
-  const optimalLaunchAngle = optimalEntry.launchAngle;
-
+  // runs simulate function on every loft value in loftAngles
+  const { data: loftData, optimalHeadwind, optimalTailwind } = useMemo(() => {
+    return getDistancePerLoft(loftAngles, loc);
+  }) 
 
   // used to plot trajectories as we only want steps of 1˚ for each trajectory path shown
   const loftAnglesInt = useMemo(() => {
@@ -292,9 +316,9 @@ export default function App() {
     return loftAnglesInt.map(loft => ({
       loft,
       path: simulate(loft, loc, tailWind).points,
-      isOptimal: Math.round(optimalLoft) === loft,
+      isOptimal: Math.round(tailWind ? optimalTailwind.loft : optimalHeadwind.loft) === loft,
     }));
-  }, [locationKey, optimalLoft, customLoc, tailWind]);
+  }, [locationKey, customLoc, tailWind]);
 
 
   return (
@@ -321,13 +345,13 @@ export default function App() {
         <div className="stats-row">
           <StatCard
             label="Optimal static loft"
-            value={`${optimalLoft}°`}
+            value={`${optimalHeadwind.loft}° - ${optimalTailwind.loft}°`}
             sub="for maximum carry distance"
             highlight
           />
           <StatCard
             label="Maximum carry"
-            value={`${Math.round(maxDistance*10) / 10}m`}
+            value={`${Math.round(optimalHeadwind.distance*10) / 10}m - ${Math.round(optimalTailwind.distance*10) / 10}m`}
             sub={`with optimal static loft`}
             highlight
           />
@@ -337,7 +361,7 @@ export default function App() {
             <div className="graph-title">Carry distance as a function of static loft</div>
             <div className="graph-sub">{loc.name} · {loc.period}</div>
             <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={distancePerLoft} margin={{ top: 5, right: 10, left: 0, bottom: 24 }}>
+              <LineChart data={loftData} margin={{ top: 5, right: 10, left: 0, bottom: 24 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
                 <XAxis
                   dataKey="loft"
@@ -355,24 +379,43 @@ export default function App() {
                   contentStyle={{ fontSize: 12, borderRadius: 6, border: "1px solid rgba(0,0,0,0.1)" }}
                 />
                 <ReferenceLine
-                  x={optimalLoft}
+                  x={optimalHeadwind.loft}
                   stroke="#2d5a27"
                   strokeDasharray="4 3"
-                  label={{ value: `${optimalLoft}° optimal`, position: "top", fontSize: 10, fill: "#2d5a27" }}
+                  label={{ value: `${optimalHeadwind.loft}° optimal`, position: "top", fontSize: 10, fill: "#2d5a27" }}
+                />
+                <ReferenceLine
+                  x={optimalTailwind.loft}
+                  stroke="#2d5a27"
+                  strokeDasharray="4 3"
+                  label={{ value: `${optimalTailwind.loft}° optimal`, position: "top", fontSize: 10, fill: "#2d5a27" }}
                 />
                 <Line
                   type="monotone"
-                  dataKey="distance"
+                  dataKey="headwindDistance"
                   stroke="#1a6bb5"
                   strokeWidth={2}
                   dot={{ r: 0, fill: "#1a6bb5", strokeWidth: 0 }}
                   activeDot={{ r: 4 }}
+                  name="Headwind"
                 />
+                <Line
+                  type="monotone"
+                  dataKey="tailwindDistance"
+                  stroke="#ed133f"
+                  strokeWidth={2}
+                  dot={{ r: 0, fill: "#1a6bb5", strokeWidth: 0 }}
+                  activeDot={{ r: 4 }}
+                  name="Tailwind"
+                />
+                <Legend verticalAlign="top" align="right"/>
               </LineChart>
             </ResponsiveContainer>
             <div className="optimal-callout">
-              <strong>{Math.round(optimalLoft*10)/10}˚ static loft</strong> achieves a maximum carry of <strong>{Math.round(maxDistance*10) / 10}m</strong>
-              <br/>with a launch angle of <strong>{Math.round(optimalLaunchAngle*10)/10}˚</strong>
+              Headwind: <strong>{Math.round(optimalHeadwind.loft*10)/10}˚ static loft</strong> achieves a maximum carry of <strong>{Math.round(optimalHeadwind.distance*10) / 10}m </strong>
+              with a launch angle of <strong>{Math.round(optimalHeadwind.launchAngle*10)/10}˚</strong>
+              <br/>Tailwind: <strong>{Math.round(optimalTailwind.loft*10)/10}˚ static loft</strong> achieves a maximum carry of <strong>{Math.round(optimalTailwind.distance*10) / 10}m </strong>
+              with a launch angle of <strong>{Math.round(optimalTailwind.launchAngle*10)/10}˚</strong>
             </div>
           </div>
           <div className="graph-card">
@@ -411,7 +454,7 @@ export default function App() {
             </ResponsiveContainer>
 
             <div className="optimal-callout">
-              <strong style={{ color: "#ed133f" }}>Red</strong>: optimal static loft {Math.round(optimalLoft * 10) / 10}° &nbsp;&nbsp;
+              <strong style={{ color: "#ed133f" }}>Red</strong>: optimal static loft {Math.round(optimalHeadwind.loft * 10) / 10}° &nbsp;&nbsp;
               <strong style={{ color: "#27a3c2" }}>Blue</strong>: integer static lofts from 0-35˚
             </div>
           </div>
