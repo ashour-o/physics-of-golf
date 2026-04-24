@@ -72,16 +72,13 @@ function simulate(staticLoft, loc, tailWind) {
   // pre-calculating constants for later
   const A = Math.PI * ( r ** 2 );
 
-  const m_air = 4.8 * (10**-26);
-  const M_a = 28.97 // molar mass of air
-  const M_v = 18.02 // molar mass of water
-  const k = 1.381 * (10**-23);
-  const R = 8.31
+  const M_a = 0.028966 // molar mass of air
+  const M_v = 0.018015 // molar mass of water
+  const R = 8.3145
 
-  // USED LATER TO ACCOUNT FOR AIR DENSITY
-
+  // USED TO ACCOUNT FOR AIR DENSITY
   // barometric formula for air pressure
-  const P = 101325 * Math.exp( - m_air * g * z / (k * T));
+  const P = 101325 * Math.exp( - M_a * g * z / (R * 288.15));
 
   // sutherland's law for air viscosity
   const mu = 1.716*(10**-5) * ((T / 273)**1.5) * (273+111) / (T+111);
@@ -110,9 +107,9 @@ function simulate(staticLoft, loc, tailWind) {
           + ((P/T)**2) * (d + e0*(x_v**2))));
 
   // calculating air density
-  const rho = ((P * (M_a / 1000)) / (Z * R * T)) * (1 - x_v*(1 - (M_v / M_a)));
+  const rho = ((P * M_a) / (Z * R * T)) * (1 - x_v*(1 - (M_v / M_a)));
 
-  // used later to account for wind speed
+  // USED TO ACCOUNT FOR WIND
   const n = 0.37 - 0.0881*Math.log(Math.abs(v_wind))
 
 
