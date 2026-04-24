@@ -109,9 +109,8 @@ function simulate(staticLoft, loc, tailWind) {
   // calculating air density
   const rho = ((P * M_a) / (Z * R * T)) * (1 - x_v*(1 - (M_v / M_a)));
 
-  // USED TO ACCOUNT FOR WIND
+  // used to account for wind
   const n = 0.37 - 0.0881*Math.log(Math.abs(v_wind))
-
 
   // dynamic loft
   const thetaDeg = staticLoft + 3.3
