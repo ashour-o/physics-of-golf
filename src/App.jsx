@@ -276,6 +276,7 @@ export default function App() {
   const [locationKey, setLocationKey] = useState("standrews");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [tailWind, setTailWind] = useState(false);
+  const [windMode, setWindMode] = useState("both"); // "headwind" | "tailwind" | "both"
   const [customLoc, setCustomLoc] = useState({
     name: "Custom",
     period: "Custom",
@@ -345,14 +346,22 @@ export default function App() {
         <div className="stats-row">
           <StatCard
             label="Optimal static loft"
-            value={`${optimalHeadwind.loft}° - ${optimalTailwind.loft}°`}
+            value={
+              windMode === "headwind" ? `${optimalHeadwind.loft}°` :
+              windMode === "tailwind" ? `${optimalTailwind.loft}°` :
+              `${optimalHeadwind.loft}° – ${optimalTailwind.loft}°`
+            }
             sub="for maximum carry distance"
             highlight
           />
           <StatCard
             label="Maximum carry"
-            value={`${Math.round(optimalHeadwind.distance*10) / 10}m - ${Math.round(optimalTailwind.distance*10) / 10}m`}
-            sub={`with optimal static loft`}
+            value={
+              windMode === "headwind" ? `${Math.round(optimalHeadwind.distance*10)/10}m` :
+              windMode === "tailwind" ? `${Math.round(optimalTailwind.distance*10)/10}m` :
+              `${Math.round(optimalHeadwind.distance*10)/10}m – ${Math.round(optimalTailwind.distance*10)/10}m`
+            }
+            sub="with optimal static loft"
             highlight
           />
         </div>
@@ -378,19 +387,19 @@ export default function App() {
                   labelFormatter={(l) => `Static loft : ${l}°`}
                   contentStyle={{ fontSize: 12, borderRadius: 6, border: "1px solid rgba(0,0,0,0.1)" }}
                 />
-                <ReferenceLine
+                {(windMode === "headwind" || windMode === "both") && <ReferenceLine
                   x={optimalHeadwind.loft}
                   stroke="#1a6bb5"
                   strokeDasharray="4 3"
                   label={{ value: `${optimalHeadwind.loft}°`, position: "top", fontSize: 10, fill: "#1a6bb5" }}
-                />
-                <ReferenceLine
+                />}
+                {(windMode === "tailwind" || windMode === "both") && <ReferenceLine
                   x={optimalTailwind.loft}
                   stroke="#ed133f"
                   strokeDasharray="4 3"
                   label={{ value: `${optimalTailwind.loft}°`, position: "top", fontSize: 10, fill: "#ed133f" }}
-                />
-                <Line
+                />}
+                {(windMode === "headwind" || windMode === "both") && <Line
                   type="monotone"
                   dataKey="headwindDistance"
                   stroke="#1a6bb5"
@@ -398,8 +407,8 @@ export default function App() {
                   dot={{ r: 0, fill: "#1a6bb5", strokeWidth: 0 }}
                   activeDot={{ r: 4 }}
                   name="Headwind"
-                />
-                <Line
+                />}
+                {(windMode === "tailwind" || windMode === "both") && <Line
                   type="monotone"
                   dataKey="tailwindDistance"
                   stroke="#ed133f"
@@ -407,20 +416,35 @@ export default function App() {
                   dot={{ r: 0, fill: "#1a6bb5", strokeWidth: 0 }}
                   activeDot={{ r: 4 }}
                   name="Tailwind"
-                />
-                <Legend verticalAlign="top" align="right"/>
+                />}
+                {(windMode === "both") && <Legend verticalAlign="top" align="right"/>}
               </LineChart>
             </ResponsiveContainer>
             <div className="optimal-callout">
-              Headwind: <strong>{Math.round(optimalHeadwind.loft*10)/10}˚ static loft</strong> achieves a maximum carry of <strong>{Math.round(optimalHeadwind.distance*10) / 10}m </strong>
-              with a launch angle of <strong>{Math.round(optimalHeadwind.launchAngle*10)/10}˚</strong>
-              <br/>Tailwind: <strong>{Math.round(optimalTailwind.loft*10)/10}˚ static loft</strong> achieves a maximum carry of <strong>{Math.round(optimalTailwind.distance*10) / 10}m </strong>
-              with a launch angle of <strong>{Math.round(optimalTailwind.launchAngle*10)/10}˚</strong>
+              {(windMode === "headwind" || windMode === "both") && (<div>Headwind: <strong>{Math.round(optimalHeadwind.loft*10)/10}˚ static loft</strong> achieves a maximum carry of <strong>{Math.round(optimalHeadwind.distance*10) / 10}m </strong>
+              with a launch angle of <strong>{Math.round(optimalHeadwind.launchAngle*10)/10}˚</strong></div>)}
+              {(windMode === "tailwind" || windMode === "both") && (<div>Tailwind: <strong>{Math.round(optimalTailwind.loft*10)/10}˚ static loft</strong> achieves a maximum carry of <strong>{Math.round(optimalTailwind.distance*10) / 10}m </strong>
+              with a launch angle of <strong>{Math.round(optimalTailwind.launchAngle*10)/10}˚</strong></div>)}
+            </div>
+            <div className="wind-selector">
+              {[
+                { key: "headwind", label: "Headwind" },
+                { key: "tailwind", label: "Tailwind" },
+                { key: "both",     label: "Both"     },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setWindMode(key)}
+                  className={`wind-selector-btn${windMode === key ? ` active-${key}` : ""}`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
           <div className="graph-card">
             <div className="graph-title">Ball trajectory for a range of static lofts</div>
-            <div className="graph-sub">{loc.name} · static lofts {GLOBAL_PHYSICS.loftMinDEG}-{GLOBAL_PHYSICS.loftMaxDEG}°</div>
+            <div className="graph-sub">{loc.name} · static lofts {GLOBAL_PHYSICS.loftMinDEG}-{GLOBAL_PHYSICS.loftMaxDEG}° · {tailWind ? "Tailwind" : "Headwind"}</div>
 
             <ResponsiveContainer width="100%" height={280}>
               <LineChart margin={{ top: 5, right: 10, left: 0, bottom: 24 }}>
@@ -461,7 +485,7 @@ export default function App() {
               onClick={() => setTailWind(w => !w)}
               className={`wind-toggle${tailWind ? " tailwind" : ""}`}
             >
-              {tailWind ? "Change to Headwind" : "Change to Tailwind"}
+              {tailWind ? "Click to see Headwind graph" : "Click to see Tailwind graph"}
             </button>
           </div>
         </div>
