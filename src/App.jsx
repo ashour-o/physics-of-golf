@@ -193,13 +193,6 @@ function simulate(staticLoft, loc, tailWind) {
   return {points, psi};
 }
 
-// returns the max distance and associated launch angle from the simulate function
-function getDistance(loftDeg, loc, tailWind) {
-  const info = simulate(loftDeg, loc, tailWind); // has both trajectory and launch angle
-  const max_distance = info.points[info.points.length - 1].x;
-  return [max_distance, info.psi * 180/Math.PI];
-}
-
 
 // creating the component for the information cards at the bottom
 function StatCard({ label, value, sub, highlight }) {
@@ -210,6 +203,14 @@ function StatCard({ label, value, sub, highlight }) {
       {sub && <div className="stat-sub">{sub}</div>}
     </div>
   );
+}
+
+
+// returns the max distance and associated launch angle from the simulate function
+function getDistance(loftDeg, loc, tailWind) {
+  const info = simulate(loftDeg, loc, tailWind); // has both trajectory and launch angle
+  const max_distance = info.points[info.points.length - 1].x;
+  return [max_distance, info.psi * 180/Math.PI];
 }
 
 
